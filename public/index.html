@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestionnaire IPTables</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Gestionnaire IPTables</h1>
+            <div id="connection-status" class="status-badge disconnected">
+                Non connecté
+            </div>
+        </header>
+
+        <!-- Formulaire de connexion -->
+        <section id="connection-section" class="card">
+            <h2>Connexion au serveur</h2>
+            <form id="connection-form">
+                <div class="form-group">
+                    <label for="host">Adresse du serveur :</label>
+                    <input type="text" id="host" name="host" placeholder="192.168.1.100" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="port">Port SSH :</label>
+                    <input type="number" id="port" name="port" value="22" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="username">Nom d'utilisateur :</label>
+                    <input type="text" id="username" name="username" placeholder="root" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="privateKeyPath">Chemin de la clé privée SSH :</label>
+                    <input type="text" id="privateKeyPath" name="privateKeyPath"
+                           placeholder="C:\Users\username\.ssh\id_rsa" required>
+                    <small>Chemin absolu vers votre clé privée SSH</small>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary" id="connect-btn">
+                        Se connecter
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="disconnect-btn" style="display: none;">
+                        Se déconnecter
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Section des règles IPTables -->
+        <section id="rules-section" class="card" style="display: none;">
+            <div class="section-header">
+                <h2>Règles IPTables</h2>
+                <div class="button-group">
+                    <button class="btn btn-success" id="refresh-btn">
+                        Rafraîchir
+                    </button>
+                    <button class="btn btn-info" id="save-btn">
+                        Sauvegarder
+                    </button>
+                    <button class="btn btn-warning" id="restore-btn">
+                        Restaurer
+                    </button>
+                </div>
+            </div>
+
+            <!-- Onglets pour les tables -->
+            <div class="tabs">
+                <button class="tab-btn active" data-table="filter">Filter</button>
+                <button class="tab-btn" data-table="nat">NAT</button>
+                <button class="tab-btn" data-table="raw">Raw</button>
+                <button class="tab-btn" data-table="mangle">Mangle</button>
+            </div>
+
+            <!-- Formulaire d'ajout de règle -->
+            <div class="add-rule-section">
+                <h3>Ajouter une nouvelle règle</h3>
+
+                <!-- Onglets pour choisir le type de règle -->
+                <div class="rule-type-tabs">
+                    <button type="button" class="rule-type-btn active" data-type="nat-simple">
+                        NAT Simplifié
+                    </button>
+                    <button type="button" class="rule-type-btn" data-type="advanced">
+                        Mode Avancé
+                    </button>
+                </div>
+
+                <!-- Formulaire NAT simplifié -->
+                <form id="nat-simple-form" class="rule-form active">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nat-source-ip">IP Source (publique) :</label>
+                            <input type="text" id="nat-source-ip" name="nat-source-ip"
+                                   placeholder="93.93.42.223" value="93.93.42.223">
+                            <small>Adresse IP publique du serveur</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="nat-external-port">Port Externe :</label>
+                            <input type="number" id="nat-external-port" name="nat-external-port"
+                                   placeholder="8080" min="1" max="65535">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nat-target-ip">IP Destination (interne) :</label>
+                            <input type="text" id="nat-target-ip" name="nat-target-ip"
+                                   placeholder="192.168.127.10" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$">
+                            <small>Adresse IP interne de la cible</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="nat-internal-port">Port Interne :</label>
+                            <input type="number" id="nat-internal-port" name="nat-internal-port"
+                                   placeholder="80" min="1" max="65535">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="nat-protocol">Protocole :</label>
+                        <select id="nat-protocol" name="nat-protocol">
+                            <option value="tcp" selected>TCP</option>
+                            <option value="udp">UDP</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        Ajouter la règle NAT
+                    </button>
+                </form>
+
+                <!-- Formulaire avancé (commande complète) -->
+                <form id="add-rule-form" class="rule-form" style="display: none;">
+                    <div class="form-group">
+                        <label for="rule-table">Table :</label>
+                        <select id="rule-table" name="rule-table">
+                            <option value="filter">filter</option>
+                            <option value="nat">nat</option>
+                            <option value="raw">raw</option>
+                            <option value="mangle">mangle</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-rule">Commande IPTables :</label>
+                        <input type="text" id="new-rule" name="new-rule"
+                               placeholder="-A INPUT -p tcp --dport 80 -j ACCEPT">
+                        <small>Exemples :<br>
+                        - Filter: -A INPUT -p tcp --dport 80 -j ACCEPT<br>
+                        - NAT: -A PREROUTING -d 93.93.42.223 -p tcp --dport 8080 -j DNAT --to-destination 192.168.1.10:80</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        Ajouter la règle
+                    </button>
+                </form>
+            </div>
+
+            <!-- Tableau des règles -->
+            <div id="rules-container">
+                <div class="loading">Chargement des règles...</div>
+            </div>
+        </section>
+
+        <!-- Messages d'erreur/succès -->
+        <div id="message-container"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
